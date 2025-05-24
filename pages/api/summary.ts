@@ -1,29 +1,31 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { Configuration, OpenAIApi } from 'openai';
+import OpenAI from 'openai';
 
-const configuration = new Configuration({
+const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
-const openai = new OpenAIApi(configuration);
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  if (req.method !== 'POST') return res.status(405).end();
-
-  const { title, timestamp } = req.body;
-
-  const prompt = `Riassumi in 5 frasi senza spoiler quello che accade nel film "${title}" fino al minuto ${timestamp}. Non svelare colpi di scena o dettagli chiave. Scrivi in tono coinvolgente ma neutrale, in italiano.`;
+  const { title, duration } = req.body;
 
   try {
-    const completion = await openai.createChatCompletion({
+    const completion = await openai.chat.completions.create({
       model: 'gpt-4',
-      messages: [{ role: 'user', content: prompt }],
-      temperature: 0.7,
+      messages: [
+        {
+          role: 'system',
+          content: 'Sei un assistente che riassume film senza spoiler.',
+        },
+        {
+          role: 'user',
+          content: `Puoi farmi un riassunto senza spoiler del film "${title}" in massimo ${duration} minuti?`,
+        },
+      ],
     });
 
-    const summary = completion.data.choices[0].message?.content;
-    res.status(200).json({ summary });
-  } catch (error) {
+    res.status(200).json({ summary: completion.choices[0].message.content });
+  } catch (error: any) {
     console.error(error);
-    res.status(500).json({ error: 'Errore nella generazione del riassunto.' });
+    res.status(500).json({ error: 'Errore durante la generazione del riassunto.' });
   }
 }
